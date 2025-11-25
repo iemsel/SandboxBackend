@@ -1,0 +1,36 @@
+services:
+  backend:
+    build:
+      context: ./SandboxBackend
+      dockerfile: Dockerfile
+    ports:
+      - "3010:3010"
+    volumes:
+      - ./SandboxBackend:/app
+      - /app/node_modules
+    env_file:
+      - ./SandboxBackend/variables.env
+    restart: unless-stopped
+    networks:
+      - sandbox-network
+
+  frontend:
+    build:
+      context: ./SandboxFrontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./SandboxFrontend:/app
+      - /app/node_modules
+    environment:
+      - PUBLIC_API_URL=http://backend:3010
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - sandbox-network
+
+networks:
+  sandbox-network:
+    driver: bridge
