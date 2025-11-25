@@ -1,0 +1,94 @@
+services:
+  mariadb:
+    image: mariadb:11
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpw
+      MARIADB_DATABASE: auth_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    networks:
+      - sandbox-network
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3010:3010"
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    env_file:
+      - ./variables.env
+    depends_on:
+      - auth-service
+      - ideas-service
+    restart: unless-stopped
+    networks:
+      - sandbox-network
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile  
+    environment:
+      - DB_HOST=mariadb
+      - DB_USER=root
+      - DB_PASS=rootpw
+      - DB_NAME=auth_db
+      - JWT_SECRET=devsecret
+      - PORT=4001
+    volumes:
+      - ./services/auth-service:/app
+      - /app/node_modules
+    depends_on:
+      - mariadb
+    restart: unless-stopped
+    networks:
+      - sandbox-network
+
+  ideas-service:
+    build:
+      context: ./services/ideas-service
+      dockerfile: Dockerfile  
+    environment:
+      - DB_HOST=mariadb
+      - DB_USER=root
+      - DB_PASS=rootpw
+      - DB_NAME=ideas_db
+      - PORT=4002
+    volumes:
+      - ./services/ideas-service:/app
+      - /app/node_modules
+    depends_on:
+      - mariadb
+    restart: unless-stopped
+    networks:
+      - sandbox-network
+      
+  planner-service:
+    build:
+      context: ./services/planner-service
+      dockerfile: Dockerfile
+    environment:
+      - DB_HOST=mariadb
+      - DB_USER=root
+      - DB_PASS=rootpw
+      - DB_NAME=planner_db
+      - PORT=4003
+      - JWT_SECRET=devsecret
+    volumes:
+      - ./services/planner-service:/app
+      - /app/node_modules
+    depends_on:
+      - mariadb
+    restart: unless-stopped
+    networks:
+      - sandbox-network
+
+networks:
+  sandbox-network:
+    driver: bridge

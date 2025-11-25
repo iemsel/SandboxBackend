@@ -1,0 +1,74 @@
+# --------------------------------------------------
+# Node.js / Microservices Backend
+# --------------------------------------------------
+
+# Node modules (root and nested services)
+node_modules/
+**/node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs/
+*.log
+
+# Environment files
+.env
+*.env
+.env.*
+variables.env
+
+# Build artifacts
+dist/
+build/
+coverage/
+tmp/
+temp/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Cache
+.cache/
+.nyc_output/
+
+# --------------------------------------------------
+# Docker (Keep Dockerfile + docker-compose)
+# --------------------------------------------------
+
+# Ignore Docker volumes and data directories—but NOT the config files
+docker-data/
+volumes/
+data/
+
+# keep:
+#   Dockerfile
+#   docker-compose.yml
+!Dockerfile
+!docker-compose.yml
+!docker-compose.yaml
+!docker-compose.yml.example
+
+# --------------------------------------------------
+# Database files
+# --------------------------------------------------
+*.sql
+!init.sql  # keep your init.sql
+docker-entrypoint-initdb.d/
+mysql/
+mariadb/
+
+# --------------------------------------------------
+# Svelte/Frontend (if present in repo)
+# --------------------------------------------------
+*.svelte-kit/
+.svelte-kit/
