@@ -1,39 +1,50 @@
-import js from "@eslint/js";
-import pluginNode from "eslint-plugin-node";
-import pluginPrettier from "eslint-plugin-prettier";
+import js from '@eslint/js';
+import pluginPrettier from 'eslint-plugin-prettier';
+import prettier from 'eslint-config-prettier';
 
 export default [
   js.configs.recommended,
+  prettier,
 
   {
     // apply to JS files
-    files: ["**/*.js", "**/*.mjs"],
+    files: ['**/*.js', '**/*.mjs'],
     languageOptions: {
       ecmaVersion: 2021,
-      sourceType: "module"
+      sourceType: 'module',
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+      },
     },
     plugins: {
-      node: pluginNode,
-      prettier: pluginPrettier
+      prettier: pluginPrettier,
     },
-    settings: {},
     rules: {
       // Prettier integration
-      "prettier/prettier": "error",
-
-      // keep plugin-node recommended rules (merge if needed)
-      ...pluginNode.configs.recommended.rules,
+      'prettier/prettier': 'error',
 
       // TEAM RULES - Should be discussed
-      quotes: ["error", "single"],
-      semi: ["error", "always"],
-      complexity: ["warn", 10],
+      quotes: ['error', 'single'],
+      semi: ['error', 'always'],
+      complexity: ['warn', 10],
 
-      // If ESM is used
-      "node/no-unsupported-features/es-syntax": ["error", { ignores: ["modules"] }],
-
-      // small pods
-      "no-console": "off"
-    }
-  }
+      // Allow console for backend logging
+      'no-console': 'off',
+    },
+  },
+  {
+    // Jest test files
+    files: ['**/*.test.js'],
+    languageOptions: {
+      globals: {
+        test: 'readonly',
+        expect: 'readonly',
+        describe: 'readonly',
+        it: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+      },
+    },
+  },
 ];
