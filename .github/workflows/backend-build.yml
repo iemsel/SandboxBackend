@@ -1,0 +1,59 @@
+name: Backend Docker Build
+
+on:
+  push:   # run on every push to any branch
+  workflow_dispatch: 
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Build gateway image (root Dockerfile)
+      - name: Build gateway image
+        run: docker build -t sandbox-gateway .
+
+      # Build each service image
+      - name: Build auth-service image
+        run: docker build -t auth-service ./services/auth-service
+
+      - name: Build ideas-service image
+        run: docker build -t ideas-service ./services/ideas-service
+
+      - name: Build planner-service image
+        run: docker build -t planner-service ./services/planner-service
+
+      # OPTIONAL: create a GitHub Issue when the build fails
+      - name: Create issue on failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { context, github } = require("@actions/github");
+
+            const title = `❌ Backend build failed on ${context.ref}`;
+            const body = `
+              A backend build has failed.
+
+              - **Repository:** ${context.repo.owner}/${context.repo.repo}
+              - **Branch/Ref:** ${context.ref}
+              - **Commit:** ${context.sha}
+              - **Workflow run:** ${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}
+
+              Please check the Actions logs for more details.`;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              assignees: [
+                
+              ]
+            });
