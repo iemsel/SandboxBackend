@@ -1,13 +1,13 @@
-const jwt = require("jsonwebtoken");
+const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || "devsecret";
+const JWT_SECRET = process.env.JWT_SECRET || 'devsecret';
 
 function authRequired(req, res, next) {
-  const authHeader = req.headers.authorization || "";
-  const token = authHeader.replace("Bearer ", "");
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.replace('Bearer ', '');
 
   if (!token) {
-    return res.status(401).json({ error: "Missing Authorization header" });
+    return res.status(401).json({ error: 'Missing Authorization header' });
   }
 
   try {
@@ -15,12 +15,12 @@ function authRequired(req, res, next) {
     req.user = {
       id: payload.sub,
       email: payload.email,
-      name: payload.name
+      name: payload.name,
     };
     next();
   } catch (err) {
-    console.error("JWT error (ideas-service):", err.message);
-    return res.status(401).json({ error: "Invalid or expired token" });
+    console.error('JWT error (ideas-service):', err.message);
+    return res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
 
