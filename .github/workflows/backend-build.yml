@@ -39,15 +39,14 @@ jobs:
 
             const title = `❌ Backend build failed on ${context.ref}`;
             const body = `
-A backend build has failed.
+              A backend build has failed.
 
-- **Repository:** ${context.repo.owner}/${context.repo.repo}
-- **Branch/Ref:** ${context.ref}
-- **Commit:** ${context.sha}
-- **Workflow run:** ${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}
+              - **Repository:** ${context.repo.owner}/${context.repo.repo}
+              - **Branch/Ref:** ${context.ref}
+              - **Commit:** ${context.sha}
+              - **Workflow run:** ${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}
 
-Please check the Actions logs for more details.
-            `;
+              Please check the Actions logs for more details.`;
 
             await github.rest.issues.create({
               owner: context.repo.owner,
