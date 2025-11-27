@@ -5,7 +5,8 @@
   "main": "start.js",
   "scripts": {
     "dev": "node src/gateway.js",
-    "start": "node start.js"
+    "start": "node start.js",
+    "test": "jest --runInBand"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -16,6 +17,15 @@
     "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
-    "nodemon": "^3.1.0"
+    "axios": "^1.13.2",
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.0",
+    "ts-node": "^10.9.2"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ]
   }
 }
