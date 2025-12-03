@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db');
@@ -101,7 +102,7 @@ async function me(req, res) {
   const token = authHeader.replace('Bearer ', '');
 
   if (!token) {
-    return res.status(401).json({ error: 'Missing token' });
+    return res.status(401).json({ error: 'Missing token' }); 
   }
 
   try {
