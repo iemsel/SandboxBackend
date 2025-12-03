@@ -102,7 +102,7 @@ async function me(req, res) {
   const token = authHeader.replace('Bearer ', '');
 
   if (!token) {
-    return res.status(401).json({ error: 'Missing token' }); 
+    return res.status(401).json({ error: 'Missing token' });
   }
 
   try {

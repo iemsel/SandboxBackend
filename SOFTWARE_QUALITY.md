@@ -9,6 +9,7 @@ We use **ESLint** for code quality and **Prettier** for code formatting. Both ru
 ## Tools
 
 ### ESLint (Code Quality)
+
 - **Purpose:** Catches bugs, enforces best practices, and ensures code style consistency
 - **Config file:** `eslint.config.js`
 - **Rules enforced:**
@@ -19,6 +20,7 @@ We use **ESLint** for code quality and **Prettier** for code formatting. Both ru
   - Proper Prettier integration (no conflicting formatting rules)
 
 ### Prettier (Code Formatting)
+
 - **Purpose:** Auto-formats code for consistency (whitespace, line breaks, quotes)
 - **Config file:** `.prettierrc`
 - **Settings:**
@@ -30,21 +32,27 @@ We use **ESLint** for code quality and **Prettier** for code formatting. Both ru
 ## Running Quality Checks
 
 ### Lint (Check for issues)
+
 ```bash
 npm run lint
 ```
+
 Scans all `.js` and `.mjs` files and reports errors.
 
 ### Lint + Fix (Auto-fix issues)
+
 ```bash
 npm run lint:fix
 ```
+
 Automatically fixes fixable issues (formatting, unused variables, etc.).
 
 ### Format with Prettier
+
 ```bash
 npx prettier --write .
 ```
+
 Formats all files according to Prettier config.
 
 ## How It Works
@@ -57,13 +65,13 @@ Formats all files according to Prettier config.
 
 ## Common Issues & Solutions
 
-| Issue | Solution |
-|-------|----------|
-| Double quotes instead of single | Run `npm run lint:fix` |
-| Missing semicolons | Run `npm run lint:fix` |
-| Unused variables/imports | Remove them manually |
-| Line too long (>100 chars) | Run `npm run lint:fix` (Prettier will wrap) |
-| Conflicting ESLint/Prettier rules | Already integrated — no manual fix needed |
+| Issue                             | Solution                                    |
+| --------------------------------- | ------------------------------------------- |
+| Double quotes instead of single   | Run `npm run lint:fix`                      |
+| Missing semicolons                | Run `npm run lint:fix`                      |
+| Unused variables/imports          | Remove them manually                        |
+| Line too long (>100 chars)        | Run `npm run lint:fix` (Prettier will wrap) |
+| Conflicting ESLint/Prettier rules | Already integrated — no manual fix needed   |
 
 ## ESLint Config Breakdown
 
@@ -83,10 +91,11 @@ To update ESLint or Prettier versions:
 2. Run `npm install`
 3. Test with `npm run lint` and `npm run lint:fix`
 4. Commit changes
- 
+
 ## Questions?
 
 Refer to:
+
 - [ESLint Documentation](https://eslint.org/docs/latest/)
 - [Prettier Documentation](https://prettier.io/docs/en/index.html)
 - `.github/workflows/backend-ci.yml` for CI configuration

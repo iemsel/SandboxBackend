@@ -1,11 +1,15 @@
 # Team 1 Sandbox UVC
+
 ## Description
+
 The project originated from an assignment by IVN to develop an ICT solution that actively involves teachers and parents in creating and maintaining green, sustainable schoolyards. The scope of the assignment includes:
 Educational: fostering knowledge about sustainability
 Creative: designing and sharing ideas for outdoor activities
 Participatory: supporting maintenance and care of green spaces
 Playful: using gamification and interactive digital tools
+
 ## Team members
+
 - Sanne Jimkes
 - Naimi de Jong
 - Alexander Atanasov
@@ -18,6 +22,7 @@ Playful: using gamification and interactive digital tools
 GreenClues is a microservice-based backend that supports a digital tool for teachers to plan and run outdoor, nature-based learning activities – even at schools without a fully green-blue schoolyard.
 
 The system focuses on:
+
 - **Teachers** – planning, saving, and reusing outdoor lesson ideas
 - **Nature-based learning** – structured activities linked to season, yard context and difficulty
 - **Modular architecture** – independent services for auth, ideas, and planning
@@ -76,3 +81,4 @@ All services communicate over an internal Docker network. The frontend only talk
 git clone https://github.com/<your-username>/<your-repo>.git
 cd SandboxBackend
 
+```
