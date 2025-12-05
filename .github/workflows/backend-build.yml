@@ -1,8 +1,11 @@
 name: Backend Docker Build
 
 on:
-  push:   # run on every push to any branch
-  workflow_dispatch: 
+  push:
+    branches: 
+      - main
+      - develop/main
+  workflow_dispatch:
 
 jobs:
   build:
@@ -29,31 +32,21 @@ jobs:
       - name: Build planner-service image
         run: docker build -t planner-service ./services/planner-service
 
-      # OPTIONAL: create a GitHub Issue when the build fails
-      - name: Create issue on failure
+      # Discord webhook notification on failure
+      - name: Send Discord notification on failure
         if: failure()
-        uses: actions/github-script@v7
+        uses: sarisia/actions-status-discord@v1
         with:
-          script: |
-            const { context, github } = require("@actions/github");
-
-            const title = `❌ Backend build failed on ${context.ref}`;
-            const body = `
-              A backend build has failed.
-
-              - **Repository:** ${context.repo.owner}/${context.repo.repo}
-              - **Branch/Ref:** ${context.ref}
-              - **Commit:** ${context.sha}
-              - **Workflow run:** ${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}
-
-              Please check the Actions logs for more details.`;
-
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title,
-              body,
-              assignees: [
-                
-              ]
-            });
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          title: "❌ Backend Build Failed"
+          description: |
+            **Repository:** ${{ github.repository }}
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+            **Workflow:** ${{ github.workflow }}
+            
+            Check the Actions logs for details:
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          color: 0xFF0000
+          username: "GitHub Actions"
+          avatar_url: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
