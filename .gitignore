@@ -63,6 +63,7 @@ data/
 # --------------------------------------------------
 *.sql
 !init.sql  # keep your init.sql
+!seed.sql
 docker-entrypoint-initdb.d/
 mysql/
 mariadb/
