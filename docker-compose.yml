@@ -8,7 +8,6 @@ services:
       - '3306:3306'
     volumes:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
-      - ./db/seed.sql:/docker-entrypoint-initdb.d/seed.sql
     restart: unless-stopped
     networks:
       - sandbox-network
@@ -50,6 +49,7 @@ services:
     restart: unless-stopped
     networks:
       - sandbox-network
+    command: sh -c "node src/seed.js && node src/server.js"
 
   ideas-service:
     build:
@@ -69,6 +69,7 @@ services:
     restart: unless-stopped
     networks:
       - sandbox-network
+    command: sh -c "node src/seed.js && node src/server.js"
 
   planner-service:
     build:
@@ -89,6 +90,7 @@ services:
     restart: unless-stopped
     networks:
       - sandbox-network
+    command: sh -c "node src/seed.js && node src/server.js"
 
 networks:
   sandbox-network:
