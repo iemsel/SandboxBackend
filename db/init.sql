@@ -1,7 +1,10 @@
--- === AUTH SERVICE DB ===
+-- ============================================
+--  AUTH SERVICE DB  (auth_db)
+-- ============================================
 CREATE DATABASE IF NOT EXISTS auth_db;
 USE auth_db;
 
+-- Users table (for auth-service)
 CREATE TABLE IF NOT EXISTS users (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   email VARCHAR(255) NOT NULL UNIQUE,
@@ -11,34 +14,91 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- === IDEAS SERVICE DB ===
+-- --------------------------------------------
+-- Chat tables (used by chat-service)
+-- --------------------------------------------
+
+CREATE TABLE IF NOT EXISTS chat_groups (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  description TEXT NULL,
+  owner_id INT NOT NULL,
+  join_code VARCHAR(16) NOT NULL UNIQUE,  -- code users can use to join
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS chat_group_members (
+  group_id INT NOT NULL,
+  user_id INT NOT NULL,
+  role ENUM('owner','moderator','member') DEFAULT 'member',
+  joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (group_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  group_id INT NOT NULL,
+  sender_id INT NOT NULL,
+  text TEXT,
+  image_url VARCHAR(1000),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  is_deleted TINYINT(1) DEFAULT 0,
+  deleted_by INT NULL
+);
+
+-- ============================================
+--  IDEAS SERVICE DB  (ideas_db)
+-- ============================================
 CREATE DATABASE IF NOT EXISTS ideas_db;
 USE ideas_db;
 
+-- Main ideas table (matches ideas.controller + seed-ideas.js)
 CREATE TABLE IF NOT EXISTS ideas (
   id INT AUTO_INCREMENT PRIMARY KEY,
   author_id INT NOT NULL,
   title VARCHAR(255) NOT NULL,
   description TEXT,
-  time_minutes INT,
+
+  -- time as number of minutes (filtering)
+  time_minutes INT NULL,
+  -- pretty label: "10–15 min", "40–50 min"
+  time_label VARCHAR(50) NULL,
+
   difficulty ENUM('easy', 'medium', 'hard') DEFAULT 'easy',
   materials TEXT,
-  subject VARCHAR(100),                  -- e.g. "nature", "math", "language"
+  subject VARCHAR(100),  -- e.g. "nature", "math", "language"
+
   season ENUM('any','spring','summer','autumn','winter') DEFAULT 'any',
   yard_context ENUM('no_green','some_green','green_blue','indoor') DEFAULT 'no_green',
+
+  -- JSON-encoded array of instructions (stringified in Node)
+  instructions_json TEXT NULL,
+
+  -- weather constraints used by seeder + filters
+  weather ENUM('any','sunny','cloudy','rainy','windy','cold') DEFAULT 'any',
+
+  -- age range (optional)
+  min_age INT NULL,
+  max_age INT NULL,
+
+  -- card image for frontend
+  image_url VARCHAR(1000) NULL,
+
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS comments (
+-- Comments with optional rating (used in controller as idea_comments)
+CREATE TABLE IF NOT EXISTS idea_comments (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  idea_id BIGINT NOT NULL,
-  user_id BIGINT NOT NULL,
+  idea_id INT NOT NULL,
+  user_id INT NOT NULL,
   text TEXT NOT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  rating TINYINT NULL,  -- 1–5, validated in controller
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Favorites (unchanged from your original, but name already used in code)
 CREATE TABLE IF NOT EXISTS idea_favorites (
   user_id INT NOT NULL,
   idea_id INT NOT NULL,
@@ -48,9 +108,34 @@ CREATE TABLE IF NOT EXISTS idea_favorites (
   INDEX idx_fav_idea (idea_id)
 );
 
--- === COLLAB (PLANNING + CHAT) SERVICE DB ===
+-- Tags like "Nature", "Recycled", "STEM"
+CREATE TABLE IF NOT EXISTS idea_tags (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  idea_id INT NOT NULL,
+  tag VARCHAR(100) NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_tag_idea (idea_id)
+);
+
+-- Categories like "DIY", "Group Project", "Experiment"
+CREATE TABLE IF NOT EXISTS idea_categories (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  idea_id INT NOT NULL,
+  category VARCHAR(100) NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_cat_idea (idea_id)
+);
+
+-- ============================================
+--  (OPTIONAL / LEGACY) COLLAB DB
+--  Only needed if you still use collab_db somewhere.
+--  Right now your microservices use auth_db, ideas_db, planner_db.
+-- ============================================
 CREATE DATABASE IF NOT EXISTS collab_db;
 USE collab_db;
+
+-- If you no longer have a collab-service, you can even drop these,
+-- but I leave them here in case you still want them for documentation.
 
 CREATE TABLE IF NOT EXISTS plans (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -69,29 +154,9 @@ CREATE TABLE IF NOT EXISTS plan_participants (
   PRIMARY KEY (plan_id, user_id)
 );
 
-CREATE TABLE IF NOT EXISTS chats (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(100) NOT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS chat_memberships (
-  chat_id BIGINT NOT NULL,
-  user_id BIGINT NOT NULL,
-  role ENUM('teacher','parent') DEFAULT 'teacher',
-  joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (chat_id, user_id)
-);
-
-CREATE TABLE IF NOT EXISTS chat_messages (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  chat_id BIGINT NOT NULL,
-  sender_user_id BIGINT NOT NULL,
-  content TEXT NOT NULL,
-  sent_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
--- Planner DB
+-- ============================================
+--  PLANNER SERVICE DB  (planner_db)
+-- ============================================
 CREATE DATABASE IF NOT EXISTS planner_db;
 USE planner_db;
 
@@ -109,7 +174,7 @@ CREATE TABLE IF NOT EXISTS plans (
 CREATE TABLE IF NOT EXISTS plan_items (
   id INT AUTO_INCREMENT PRIMARY KEY,
   plan_id INT NOT NULL,
-  idea_id INT NULL,                              -- reference to ideas_db.ideas.id (logical link)
+  idea_id INT NULL,          -- logical link to ideas_db.ideas.id
   custom_title VARCHAR(255),
   custom_description TEXT,
   start_time TIME NULL,

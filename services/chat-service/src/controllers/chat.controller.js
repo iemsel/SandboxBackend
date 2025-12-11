@@ -33,6 +33,10 @@ async function listGroups(req, res) {
   }
 }
 
+function generateJoinCode() {
+  return Math.random().toString(36).slice(2, 10).toUpperCase();
+}
+
 // POST /groups – create group, creator is owner
 async function createGroup(req, res) {
   const userId = req.user.id;
@@ -41,16 +45,16 @@ async function createGroup(req, res) {
   if (!name) {
     return res.status(400).json({ error: 'name is required' });
   }
-
+  const joinCode = generateJoinCode();
   try {
     const [result] = await db.query(
-      'INSERT INTO chat_groups (name, description, owner_id) VALUES (?, ?, ?)',
-      [name, description || null, userId],
+      'INSERT INTO chat_groups (name, description, owner_id, join_code) VALUES (?, ?, ?, ?)',
+      [name, description || null, userId, joinCode],
     );
 
     const groupId = result.insertId;
 
-    // 🔧 FIX: pass values as a single array
+    // Pass values as a single array
     await db.query('INSERT INTO chat_group_members (group_id, user_id, role) VALUES (?, ?, ?)', [
       groupId,
       userId,
@@ -61,6 +65,39 @@ async function createGroup(req, res) {
     return res.status(201).json(rows[0]);
   } catch (err) {
     console.error('[chat-service] createGroup error:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+}
+
+// POST /groups/join { code: "ABCD1234" }
+async function joinGroupByCode(req, res) {
+  const userId = req.user.id;
+  const { code } = req.body;
+
+  if (!code) {
+    return res.status(400).json({ error: 'code is required' });
+  }
+
+  try {
+    // 1. Find group by join code
+    const [groups] = await db.query('SELECT id FROM chat_groups WHERE join_code = ?', [code]);
+    if (groups.length === 0) {
+      return res.status(404).json({ error: 'Group not found for this code' });
+    }
+
+    const groupId = groups[0].id;
+
+    // 2. Insert membership (or ignore if already joined)
+    await db.query(
+      'INSERT IGNORE INTO chat_group_members (group_id, user_id, role) VALUES (?, ?, ?)',
+      [groupId, userId, 'member'],
+    );
+
+    // 3. Return the joined group
+    const [rows] = await db.query('SELECT * FROM chat_groups WHERE id = ?', [groupId]);
+    return res.status(200).json(rows[0]);
+  } catch (err) {
+    console.error('[chat-service] joinGroupByCode error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
 }
@@ -232,4 +269,5 @@ module.exports = {
   listMessages,
   sendMessage,
   deleteMessage,
+  joinGroupByCode,
 };

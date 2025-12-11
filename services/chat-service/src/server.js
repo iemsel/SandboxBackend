@@ -1,23 +1,14 @@
 // services/chat-service/src/server.js
-require('dotenv').config();
 const express = require('express');
-const cors = require('cors');
+const app = express();
 const chatRoutes = require('./routes/chat.routes');
 
-const app = express();
-const PORT = process.env.PORT || 4004;
-
-app.use(cors());
 app.use(express.json());
 
-// health check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', service: 'chat' });
-});
-
-// all chat routes mounted at root
+// inside the service we mount at root; gateway rewrites /chat → ''
 app.use('/', chatRoutes);
 
+const PORT = process.env.PORT || 4004;
 app.listen(PORT, () => {
   console.log(`Chat service listening on port ${PORT}`);
 });
