@@ -19,34 +19,53 @@ CREATE TABLE IF NOT EXISTS ideas (
   id INT AUTO_INCREMENT PRIMARY KEY,
   author_id INT NOT NULL,
   title VARCHAR(255) NOT NULL,
-  description TEXT,
-  time_minutes INT,
-  difficulty ENUM('easy', 'medium', 'hard') DEFAULT 'easy',
-  materials TEXT,
-  subject VARCHAR(100),                  -- e.g. "nature", "math", "language"
+  description TEXT NULL,
+  time_minutes INT NULL,
+  time_label VARCHAR(50) NULL,
+  difficulty ENUM('easy','medium','hard') DEFAULT 'easy',
+  materials TEXT NULL,
+  subject VARCHAR(100) NULL,
   season ENUM('any','spring','summer','autumn','winter') DEFAULT 'any',
   yard_context ENUM('no_green','some_green','green_blue','indoor') DEFAULT 'no_green',
+  instructions_json JSON NULL,
+  weather ENUM('any','sunny','cloudy','rainy','windy','cold') DEFAULT 'any',
+  min_age INT NULL,
+  max_age INT NULL,
+  image_url VARCHAR(1000) NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS comments (
-  id BIGINT AUTO_INCREMENT PRIMARY KEY,
-  idea_id BIGINT NOT NULL,
-  user_id BIGINT NOT NULL,
+CREATE TABLE IF NOT EXISTS idea_comments (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  idea_id INT NOT NULL,
+  user_id INT NOT NULL,
   text TEXT NOT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  rating TINYINT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS idea_tags (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  idea_id INT NOT NULL,
+  tag VARCHAR(255) NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS idea_categories (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  idea_id INT NOT NULL,
+  category VARCHAR(255) NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS idea_favorites (
   user_id INT NOT NULL,
   idea_id INT NOT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (user_id, idea_id),
-  INDEX idx_fav_user (user_id),
-  INDEX idx_fav_idea (idea_id)
+  PRIMARY KEY (user_id, idea_id)
 );
+
 
 -- === COLLAB (PLANNING + CHAT) SERVICE DB ===
 CREATE DATABASE IF NOT EXISTS collab_db;
