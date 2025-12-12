@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS idea_comments (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Favorites (unchanged from your original, but name already used in code)
+-- Favorites 
 CREATE TABLE IF NOT EXISTS idea_favorites (
   user_id INT NOT NULL,
   idea_id INT NOT NULL,
@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS idea_favorites (
   INDEX idx_fav_idea (idea_id)
 );
 
--- Tags like "Nature", "Recycled", "STEM"
+-- Tags "Nature", "Recycled", "STEM"
 CREATE TABLE IF NOT EXISTS idea_tags (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   idea_id INT NOT NULL,
@@ -126,16 +126,8 @@ CREATE TABLE IF NOT EXISTS idea_categories (
   INDEX idx_cat_idea (idea_id)
 );
 
--- ============================================
---  (OPTIONAL / LEGACY) COLLAB DB
---  Only needed if you still use collab_db somewhere.
---  Right now your microservices use auth_db, ideas_db, planner_db.
--- ============================================
 CREATE DATABASE IF NOT EXISTS collab_db;
 USE collab_db;
-
--- If you no longer have a collab-service, you can even drop these,
--- but I leave them here in case you still want them for documentation.
 
 CREATE TABLE IF NOT EXISTS plans (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -184,3 +176,4 @@ CREATE TABLE IF NOT EXISTS plan_items (
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_plan_id (plan_id)
 );
+
