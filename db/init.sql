@@ -103,9 +103,7 @@ CREATE TABLE IF NOT EXISTS idea_favorites (
   user_id INT NOT NULL,
   idea_id INT NOT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (user_id, idea_id),
-  INDEX idx_fav_user (user_id),
-  INDEX idx_fav_idea (idea_id)
+  PRIMARY KEY (user_id, idea_id)
 );
 
 -- Tags "Nature", "Recycled", "STEM"
