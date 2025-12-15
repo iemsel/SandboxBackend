@@ -20,6 +20,9 @@ app.use(
     target: 'http://auth-service:4001',
     changeOrigin: true,
     logLevel: 'debug',
+    pathRewrite: {
+      '^/auth': '',
+    },
   }),
 );
 
@@ -30,18 +33,39 @@ app.use(
     target: 'http://ideas-service:4002',
     changeOrigin: true,
     logLevel: 'debug',
+    pathRewrite: {
+      '^/ideas': '',
+    },
   }),
 );
 
+// /planner → planner-service
 app.use(
   '/planner',
   createProxyMiddleware({
     target: 'http://planner-service:4003',
     changeOrigin: true,
     logLevel: 'debug',
+    pathRewrite: {
+      '^/planner': '',
+    },
   }),
 );
 
+// /chat → chat-service
+app.use(
+  '/chat',
+  createProxyMiddleware({
+    target: 'http://chat-service:4004',
+    changeOrigin: true,
+    logLevel: 'debug',
+    pathRewrite: {
+      '^/chat': '',
+    },
+  }),
+);
+
+// gateway own health
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'gateway' });
 });

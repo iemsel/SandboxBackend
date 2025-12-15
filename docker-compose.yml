@@ -89,6 +89,23 @@ services:
     networks:
       - sandbox-network
 
+  chat-service:
+    build: ./services/chat-service
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=mariadb
+      - DB_USER=root
+      - DB_PASS=rootpw
+      - DB_NAME=auth_db 
+      - PORT=4004
+      - JWT_SECRET=devsecret
+    depends_on:
+      - mariadb
+    networks:
+      - sandbox-network
+
+
 networks:
   sandbox-network:
     driver: bridge
