@@ -5,7 +5,7 @@ services:
       MARIADB_ROOT_PASSWORD: rootpw
       MARIADB_DATABASE: auth_db
     ports:
-      - "3306:3306"
+      - '3306:3306'
     volumes:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: unless-stopped
@@ -17,7 +17,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "3010:3010"
+      - '3010:3010'
     volumes:
       - ./:/app
       - /app/node_modules
@@ -33,7 +33,7 @@ services:
   auth-service:
     build:
       context: ./services/auth-service
-      dockerfile: Dockerfile  
+      dockerfile: Dockerfile
     environment:
       - DB_HOST=mariadb
       - DB_USER=root
@@ -53,7 +53,7 @@ services:
   ideas-service:
     build:
       context: ./services/ideas-service
-      dockerfile: Dockerfile  
+      dockerfile: Dockerfile
     environment:
       - DB_HOST=mariadb
       - DB_USER=root
@@ -68,7 +68,7 @@ services:
     restart: unless-stopped
     networks:
       - sandbox-network
-      
+
   planner-service:
     build:
       context: ./services/planner-service
@@ -88,6 +88,23 @@ services:
     restart: unless-stopped
     networks:
       - sandbox-network
+
+  chat-service:
+    build: ./services/chat-service
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=mariadb
+      - DB_USER=root
+      - DB_PASS=rootpw
+      - DB_NAME=auth_db 
+      - PORT=4004
+      - JWT_SECRET=devsecret
+    depends_on:
+      - mariadb
+    networks:
+      - sandbox-network
+
 
 networks:
   sandbox-network:

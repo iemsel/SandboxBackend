@@ -1,22 +1,22 @@
-const express = require("express");
+const express = require('express');
 const router = express.Router();
-const ideasController = require("../controllers/ideas.controller");
-const { authRequired } = require("../middleware/auth");
 
-// Public: listing ideas (optionally filtered)
-router.get("/", ideasController.listIdeas);
+// IMPORTANT: destructure authRequired from the exported object
+const { authRequired } = require('../middleware/auth');
+const ideasController = require('../controllers/ideas.controller');
 
-// Public: view single idea
-router.get("/:id", ideasController.getIdea);
+// ---------- Public routes ----------
+router.get('/', ideasController.listIdeas);
+router.get('/:id', ideasController.getIdea);
+router.get('/:id/comments', ideasController.listComments);
 
-// Protected: create idea
-router.post("/", authRequired, ideasController.createIdea);
+// ---------- Protected routes (need JWT) ----------
+router.post('/', authRequired, ideasController.createIdea);
+router.delete('/:id', authRequired, ideasController.deleteIdea);
 
-// Protected: delete idea (only owner)
-router.delete("/:id", authRequired, ideasController.deleteIdea);
+router.post('/:id/comments', authRequired, ideasController.addComment);
 
-// Protected: add/remove favourites
-router.post("/favorites/:id", authRequired, ideasController.addFavorite);
-router.delete("/favorites/:id", authRequired, ideasController.removeFavorite);
+router.post('/favorites/:id', authRequired, ideasController.addFavorite);
+router.delete('/favorites/:id', authRequired, ideasController.removeFavorite);
 
 module.exports = router;
