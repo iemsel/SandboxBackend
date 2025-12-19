@@ -1,4 +1,5 @@
 const db = require('../db');
+const authDb = require('../db').authDb;
 
 // Helper: safely turn instructions into JSON string (or null)
 function serializeInstructions(instructions) {
@@ -274,7 +275,7 @@ async function getIdea(req, res) {
       [id],
     );
 
-    // Get like/dislike counts and user reactions for each comment
+    // Get like/dislike counts, user reactions, and user names for each comment
     const commentsWithReactions = await Promise.all(
       commentRows.map(async (comment) => {
         const [likeRows] = await db.query(
@@ -297,11 +298,23 @@ async function getIdea(req, res) {
           }
         }
         
+        // Get user name from auth_db
+        let userName = null;
+        try {
+          const [userRows] = await authDb.query('SELECT name FROM users WHERE id = ?', [comment.user_id]);
+          if (userRows.length > 0) {
+            userName = userRows[0].name;
+          }
+        } catch (err) {
+          console.error(`Error fetching user ${comment.user_id}:`, err);
+        }
+        
         return {
           ...comment,
           likes: likeRows[0]?.count || 0,
           dislikes: dislikeRows[0]?.count || 0,
           userReaction,
+          userName: userName || null,
         };
       }),
     );
@@ -314,6 +327,16 @@ async function getIdea(req, res) {
     const avg_rating = ratingRows[0].avg_rating || null;
     const rating_count = ratingRows[0].rating_count || 0;
 
+    // Check if user has favorited this idea
+    let isFavorited = false;
+    if (userId) {
+      const [favoriteRows] = await db.query(
+        'SELECT * FROM idea_favorites WHERE user_id = ? AND idea_id = ?',
+        [userId, id],
+      );
+      isFavorited = favoriteRows.length > 0;
+    }
+
     res.json({
       ...idea,
       instructions: parseInstructions(idea.instructions_json),
@@ -322,6 +345,7 @@ async function getIdea(req, res) {
       comments: commentsWithReactions,
       avg_rating,
       rating_count,
+      isFavorited,
     });
   } catch (err) {
     console.error('getIdea error:', err);
@@ -438,7 +462,23 @@ async function addComment(req, res) {
     );
 
     const [rows] = await db.query('SELECT * FROM idea_comments WHERE id = ?', [result.insertId]);
-    res.status(201).json(rows[0]);
+    const comment = rows[0];
+    
+    // Get user name from auth_db
+    let userName = null;
+    try {
+      const [userRows] = await authDb.query('SELECT name FROM users WHERE id = ?', [userId]);
+      if (userRows.length > 0) {
+        userName = userRows[0].name;
+      }
+    } catch (err) {
+      console.error(`Error fetching user ${userId}:`, err);
+    }
+    
+    res.status(201).json({
+      ...comment,
+      userName: userName || null,
+    });
   } catch (err) {
     console.error('addComment error:', err);
     res.status(500).json({ error: 'Server error' });
@@ -455,7 +495,7 @@ async function listComments(req, res) {
       [ideaId],
     );
 
-    // Get like/dislike counts for each comment
+    // Get like/dislike counts and user names for each comment
     const commentsWithReactions = await Promise.all(
       rows.map(async (comment) => {
         const [likeRows] = await db.query(
@@ -466,10 +506,23 @@ async function listComments(req, res) {
           'SELECT COUNT(*) AS count FROM comment_reactions WHERE comment_id = ? AND reaction_type = "dislike"',
           [comment.id],
         );
+        
+        // Get user name from auth_db
+        let userName = null;
+        try {
+          const [userRows] = await authDb.query('SELECT name FROM users WHERE id = ?', [comment.user_id]);
+          if (userRows.length > 0) {
+            userName = userRows[0].name;
+          }
+        } catch (err) {
+          console.error(`Error fetching user ${comment.user_id}:`, err);
+        }
+        
         return {
           ...comment,
           likes: likeRows[0]?.count || 0,
           dislikes: dislikeRows[0]?.count || 0,
+          userName: userName || null,
         };
       }),
     );
