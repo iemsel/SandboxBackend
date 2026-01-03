@@ -24,4 +24,27 @@ function authRequired(req, res, next) {
   }
 }
 
-module.exports = { authRequired };
+// Optional auth - doesn't fail if no token, but sets req.user if token is valid
+function optionalAuth(req, res, next) {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.replace('Bearer ', '');
+
+  if (!token) {
+    return next(); // No token, continue without user
+  }
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    req.user = {
+      id: payload.sub,
+      email: payload.email,
+      name: payload.name,
+    };
+  } catch (err) {
+    // Invalid token, but continue without user
+    console.error('JWT error (optional auth):', err.message);
+  }
+  next();
+}
+
+module.exports = { authRequired, optionalAuth };
