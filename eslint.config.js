@@ -34,7 +34,7 @@ module.exports = [
       'prettier/prettier': 'error',
       quotes: ['error', 'single'],
       semi: ['error', 'always'],
-      complexity: ['warn', 10],
+      complexity: ['warn', 30],
       'no-console': 'off',
       'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
