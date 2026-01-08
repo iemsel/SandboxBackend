@@ -121,10 +121,26 @@ async function listIdeas(req, res) {
   try {
     const [rows] = await db.query(sql, params);
 
-    // Convert instructions_json → instructions array
+    // Get user ID if available
+    const userId = req.user?.id;
+    
+    // Fetch all favorites for the user in one query (more efficient)
+    let favoriteIds = new Set();
+    if (userId && rows.length > 0) {
+      const ideaIds = rows.map(row => row.id);
+      const placeholders = ideaIds.map(() => '?').join(',');
+      const [favoriteRows] = await db.query(
+        `SELECT idea_id FROM idea_favorites WHERE user_id = ? AND idea_id IN (${placeholders})`,
+        [userId, ...ideaIds],
+      );
+      favoriteIds = new Set(favoriteRows.map(row => row.idea_id));
+    }
+
+    // Convert instructions_json → instructions array and add isFavorited field
     const result = rows.map((idea) => ({
       ...idea,
       instructions: parseInstructions(idea.instructions_json),
+      isFavorited: favoriteIds.has(idea.id),
     }));
 
     res.json(result);
