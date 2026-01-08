@@ -123,8 +123,67 @@ async function me(req, res) {
   }
 }
 
+async function changePassword(req, res) {
+  const { oldPassword, newPassword } = req.body;
+  
+  // MANUALLY GET USER ID FROM TOKEN (Like in your 'me' function)
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.replace('Bearer ', '');
+
+  if (!token) return res.status(401).json({ error: 'Missing token' });
+
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    const userId = payload.sub; // This is your req.user.id equivalent
+
+    const [rows] = await db.query("SELECT password_hash FROM users WHERE id = ?", [userId]);
+    if (rows.length === 0) return res.status(404).json({ error: "User not found" });
+    
+    const user = rows[0];
+    const isMatch = await comparePassword(oldPassword, user.password_hash);
+    if (!isMatch) return res.status(400).json({ error: "Current password incorrect" });
+
+    const newHash = await hashPassword(newPassword);
+    await db.query("UPDATE users SET password_hash = ? WHERE id = ?", [newHash, userId]);
+
+    res.json({ message: "Password updated successfully" });
+  } catch (err) {
+    console.error("Change Password error:", err);
+    res.status(401).json({ error: "Invalid token or server error" });
+  }
+}
+
+async function resetPasswordRequest(req, res) {
+  const { email, newPassword } = req.body;
+
+  if (!email || !newPassword) {
+    return res.status(400).json({ error: "Email and new password are required" });
+  }
+
+  try {
+    // 1. Check if user exists
+    const [rows] = await db.query("SELECT id FROM users WHERE email = ?", [email]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "No account found with that email" });
+    }
+
+    // 2. Hash new password
+    const hash = await hashPassword(newPassword);
+
+    // 3. Update database
+    await db.query("UPDATE users SET password_hash = ? WHERE email = ?", [hash, email]);
+
+    return res.json({ message: "Password reset successfully" });
+  } catch (err) {
+    console.error("Reset error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+}
+
 module.exports = {
   register,
   login,
   me,
+  changePassword,
+  resetPasswordRequest,
 };
