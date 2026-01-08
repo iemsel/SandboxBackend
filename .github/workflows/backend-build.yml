@@ -61,9 +61,9 @@ jobs:
         run: docker build -t chat-service ./services/chat-service
 
       # 2.2 Development pipeline produces working software: Test the containers
-      - name: Start services with docker-compose
+      - name: Start services with docker compose
         run: |
-          # Create environment file for docker-compose
+          # Create environment file for docker compose
           cat > .env << EOF
           DB_HOST=${{ env.DB_HOST }}
           DB_USER=${{ env.DB_USER }}
@@ -93,11 +93,13 @@ jobs:
           # Verify services are responding
           timeout 30 bash -c 'until curl -f http://localhost:${{ env.GATEWAY_PORT }}/health || curl -f http://localhost:${{ env.AUTH_PORT }}/health; do sleep 2; done' || true
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
       - name: Run integration tests
         run: |
-          # Set up Node.js for running tests
-          curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-          sudo apt-get install -y nodejs
           npm install
           # Run tests against running containers
           npm test || true
