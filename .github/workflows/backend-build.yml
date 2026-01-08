@@ -39,6 +39,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Set up Docker Compose
+        run: |
+          # Docker Compose V2 is available as 'docker compose' on GitHub Actions runners
+          docker compose version
+
       # 2.4 Containerization: Build Docker images with all dependencies
       - name: Build gateway image
         run: docker build -t sandbox-gateway .
@@ -76,9 +81,9 @@ jobs:
           EOF
           
           # Start services in background
-          docker-compose up -d mariadb
+          docker compose up -d mariadb
           sleep 10  # Wait for database to be ready
-          docker-compose up -d auth-service ideas-service planner-service chat-service gateway
+          docker compose up -d auth-service ideas-service planner-service chat-service gateway
           sleep 15  # Wait for services to start
 
       - name: Verify services are running
@@ -100,7 +105,7 @@ jobs:
       - name: Cleanup
         if: always()
         run: |
-          docker-compose down -v
+          docker compose down -v || true
           docker system prune -f
 
       # 2.1 Developers informed when build succeeds / fails Discord notification
