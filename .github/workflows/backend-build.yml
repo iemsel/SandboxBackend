@@ -150,12 +150,13 @@ jobs:
           rm -rf node_modules || true
           
           # Install dependencies
-          # HUSKY=0 prevents husky from trying to set up git hooks (not needed in CI)
-          HUSKY=0 npm install
+          # --ignore-scripts skips lifecycle scripts (prevents husky prepare script from running)
+          npm install --ignore-scripts
           
           # Run tests against running containers
           # Tests make HTTP requests to the services
-          npm test
+          # npm run test adds node_modules/.bin to PATH automatically
+          npm run test
 
       # Cleanup step: Always runs, even if previous steps failed
       - name: Cleanup
