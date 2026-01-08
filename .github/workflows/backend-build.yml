@@ -157,8 +157,8 @@ jobs:
           
           # Run tests against running containers
           # Tests make HTTP requests to the services
-          # Using npx to ensure jest is found in node_modules/.bin
-          npx jest --runInBand
+          # Use direct path to jest to avoid PATH issues with --ignore-scripts
+          ./node_modules/.bin/jest --runInBand
 
       # Cleanup step: Always runs, even if previous steps failed
       - name: Cleanup
