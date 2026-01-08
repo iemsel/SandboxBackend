@@ -102,8 +102,8 @@ jobs:
         run: |
           # Clean up any leftover node_modules from previous runs (permission issues)
           rm -rf node_modules || true
-          # Install dependencies
-          npm install
+          # Install dependencies (skip husky in CI)
+          HUSKY=0 npm install --ignore-scripts
           # Run tests against running containers
           npm test || true
 
