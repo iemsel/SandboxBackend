@@ -96,10 +96,13 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: Run integration tests
         run: |
+          # Clean up any leftover node_modules from previous runs (permission issues)
+          rm -rf node_modules || true
+          # Install dependencies
           npm install
           # Run tests against running containers
           npm test || true
