@@ -6,7 +6,9 @@ const { authRequired, optionalAuth } = require('../middleware/auth');
 const ideasController = require('../controllers/ideas.controller');
 
 // ---------- Public routes ----------
-router.get('/', ideasController.listIdeas);
+// listIdeas uses optionalAuth to support favorites_only filter when user is logged in
+// optionalAuth doesn't require auth - it just sets req.user if token is valid
+router.get('/', optionalAuth, ideasController.listIdeas);
 router.get('/:id/comments', ideasController.listComments);
 // getIdea uses optional auth to show user reactions if logged in
 router.get('/:id', optionalAuth, ideasController.getIdea);
