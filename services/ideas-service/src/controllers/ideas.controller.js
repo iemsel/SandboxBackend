@@ -1,4 +1,5 @@
 const db = require('../db');
+const authDb = require('../db').authDb;
 
 // Helper: safely turn instructions into JSON string (or null)
 function serializeInstructions(instructions) {
@@ -120,10 +121,26 @@ async function listIdeas(req, res) {
   try {
     const [rows] = await db.query(sql, params);
 
-    // Convert instructions_json → instructions array
+    // Get user ID if available
+    const userId = req.user?.id;
+
+    // Fetch all favorites for the user in one query (more efficient)
+    let favoriteIds = new Set();
+    if (userId && rows.length > 0) {
+      const ideaIds = rows.map((row) => row.id);
+      const placeholders = ideaIds.map(() => '?').join(',');
+      const [favoriteRows] = await db.query(
+        `SELECT idea_id FROM idea_favorites WHERE user_id = ? AND idea_id IN (${placeholders})`,
+        [userId, ...ideaIds],
+      );
+      favoriteIds = new Set(favoriteRows.map((row) => row.idea_id));
+    }
+
+    // Convert instructions_json → instructions array and add isFavorited field
     const result = rows.map((idea) => ({
       ...idea,
       instructions: parseInstructions(idea.instructions_json),
+      isFavorited: favoriteIds.has(idea.id),
     }));
 
     res.json(result);
@@ -254,6 +271,7 @@ async function createIdea(req, res) {
 // GET /:id
 async function getIdea(req, res) {
   const { id } = req.params;
+  const userId = req.user?.id; // Optional - user might not be logged in
 
   try {
     const [ideas] = await db.query('SELECT * FROM ideas WHERE id = ?', [id]);
@@ -273,6 +291,52 @@ async function getIdea(req, res) {
       [id],
     );
 
+    // Get like/dislike counts, user reactions, and user names for each comment
+    const commentsWithReactions = await Promise.all(
+      commentRows.map(async (comment) => {
+        const [likeRows] = await db.query(
+          'SELECT COUNT(*) AS count FROM comment_reactions WHERE comment_id = ? AND reaction_type = "like"',
+          [comment.id],
+        );
+        const [dislikeRows] = await db.query(
+          'SELECT COUNT(*) AS count FROM comment_reactions WHERE comment_id = ? AND reaction_type = "dislike"',
+          [comment.id],
+        );
+
+        let userReaction = null;
+        if (userId) {
+          const [userReactionRows] = await db.query(
+            'SELECT reaction_type FROM comment_reactions WHERE comment_id = ? AND user_id = ?',
+            [comment.id, userId],
+          );
+          if (userReactionRows.length > 0) {
+            userReaction = userReactionRows[0].reaction_type;
+          }
+        }
+
+        // Get user name from auth_db
+        let userName = null;
+        try {
+          const [userRows] = await authDb.query('SELECT name FROM users WHERE id = ?', [
+            comment.user_id,
+          ]);
+          if (userRows.length > 0) {
+            userName = userRows[0].name;
+          }
+        } catch (err) {
+          console.error(`Error fetching user ${comment.user_id}:`, err);
+        }
+
+        return {
+          ...comment,
+          likes: likeRows[0]?.count || 0,
+          dislikes: dislikeRows[0]?.count || 0,
+          userReaction,
+          userName: userName || null,
+        };
+      }),
+    );
+
     const [ratingRows] = await db.query(
       'SELECT AVG(rating) AS avg_rating, COUNT(*) AS rating_count FROM idea_comments WHERE idea_id = ? AND rating IS NOT NULL',
       [id],
@@ -281,14 +345,25 @@ async function getIdea(req, res) {
     const avg_rating = ratingRows[0].avg_rating || null;
     const rating_count = ratingRows[0].rating_count || 0;
 
+    // Check if user has favorited this idea
+    let isFavorited = false;
+    if (userId) {
+      const [favoriteRows] = await db.query(
+        'SELECT * FROM idea_favorites WHERE user_id = ? AND idea_id = ?',
+        [userId, id],
+      );
+      isFavorited = favoriteRows.length > 0;
+    }
+
     res.json({
       ...idea,
       instructions: parseInstructions(idea.instructions_json),
       tags: tagRows.map((r) => r.tag),
       categories: catRows.map((r) => r.category),
-      comments: commentRows,
+      comments: commentsWithReactions,
       avg_rating,
       rating_count,
+      isFavorited,
     });
   } catch (err) {
     console.error('getIdea error:', err);
@@ -405,7 +480,23 @@ async function addComment(req, res) {
     );
 
     const [rows] = await db.query('SELECT * FROM idea_comments WHERE id = ?', [result.insertId]);
-    res.status(201).json(rows[0]);
+    const comment = rows[0];
+
+    // Get user name from auth_db
+    let userName = null;
+    try {
+      const [userRows] = await authDb.query('SELECT name FROM users WHERE id = ?', [userId]);
+      if (userRows.length > 0) {
+        userName = userRows[0].name;
+      }
+    } catch (err) {
+      console.error(`Error fetching user ${userId}:`, err);
+    }
+
+    res.status(201).json({
+      ...comment,
+      userName: userName || null,
+    });
   } catch (err) {
     console.error('addComment error:', err);
     res.status(500).json({ error: 'Server error' });
@@ -421,9 +512,184 @@ async function listComments(req, res) {
       'SELECT id, idea_id, user_id, text, rating, created_at FROM idea_comments WHERE idea_id = ? ORDER BY created_at ASC',
       [ideaId],
     );
-    res.json(rows);
+
+    // Get like/dislike counts and user names for each comment
+    const commentsWithReactions = await Promise.all(
+      rows.map(async (comment) => {
+        const [likeRows] = await db.query(
+          'SELECT COUNT(*) AS count FROM comment_reactions WHERE comment_id = ? AND reaction_type = "like"',
+          [comment.id],
+        );
+        const [dislikeRows] = await db.query(
+          'SELECT COUNT(*) AS count FROM comment_reactions WHERE comment_id = ? AND reaction_type = "dislike"',
+          [comment.id],
+        );
+
+        // Get user name from auth_db
+        let userName = null;
+        try {
+          const [userRows] = await authDb.query('SELECT name FROM users WHERE id = ?', [
+            comment.user_id,
+          ]);
+          if (userRows.length > 0) {
+            userName = userRows[0].name;
+          }
+        } catch (err) {
+          console.error(`Error fetching user ${comment.user_id}:`, err);
+        }
+
+        return {
+          ...comment,
+          likes: likeRows[0]?.count || 0,
+          dislikes: dislikeRows[0]?.count || 0,
+          userName: userName || null,
+        };
+      }),
+    );
+
+    res.json(commentsWithReactions);
   } catch (err) {
     console.error('listComments error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+// POST /comments/:commentId/like – toggle like on a comment
+async function toggleCommentLike(req, res) {
+  const userId = req.user?.id;
+  const { commentId } = req.params;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    // Check if comment exists
+    const [commentRows] = await db.query('SELECT id FROM idea_comments WHERE id = ?', [commentId]);
+    if (commentRows.length === 0) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    // Check if user already has a reaction
+    const [existingRows] = await db.query(
+      'SELECT reaction_type FROM comment_reactions WHERE comment_id = ? AND user_id = ?',
+      [commentId, userId],
+    );
+
+    if (existingRows.length > 0) {
+      const existingReaction = existingRows[0].reaction_type;
+      if (existingReaction === 'like') {
+        // Remove like
+        await db.query('DELETE FROM comment_reactions WHERE comment_id = ? AND user_id = ?', [
+          commentId,
+          userId,
+        ]);
+      } else {
+        // Change dislike to like
+        await db.query(
+          'UPDATE comment_reactions SET reaction_type = "like" WHERE comment_id = ? AND user_id = ?',
+          [commentId, userId],
+        );
+      }
+    } else {
+      // Add like
+      await db.query(
+        'INSERT INTO comment_reactions (comment_id, user_id, reaction_type) VALUES (?, ?, "like")',
+        [commentId, userId],
+      );
+    }
+
+    // Get updated counts
+    const [likeRows] = await db.query(
+      'SELECT COUNT(*) AS count FROM comment_reactions WHERE comment_id = ? AND reaction_type = "like"',
+      [commentId],
+    );
+    const [dislikeRows] = await db.query(
+      'SELECT COUNT(*) AS count FROM comment_reactions WHERE comment_id = ? AND reaction_type = "dislike"',
+      [commentId],
+    );
+    const [userReactionRows] = await db.query(
+      'SELECT reaction_type FROM comment_reactions WHERE comment_id = ? AND user_id = ?',
+      [commentId, userId],
+    );
+
+    res.json({
+      likes: likeRows[0]?.count || 0,
+      dislikes: dislikeRows[0]?.count || 0,
+      userReaction: userReactionRows.length > 0 ? userReactionRows[0].reaction_type : null,
+    });
+  } catch (err) {
+    console.error('toggleCommentLike error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+// POST /comments/:commentId/dislike – toggle dislike on a comment
+async function toggleCommentDislike(req, res) {
+  const userId = req.user?.id;
+  const { commentId } = req.params;
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  try {
+    // Check if comment exists
+    const [commentRows] = await db.query('SELECT id FROM idea_comments WHERE id = ?', [commentId]);
+    if (commentRows.length === 0) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+
+    // Check if user already has a reaction
+    const [existingRows] = await db.query(
+      'SELECT reaction_type FROM comment_reactions WHERE comment_id = ? AND user_id = ?',
+      [commentId, userId],
+    );
+
+    if (existingRows.length > 0) {
+      const existingReaction = existingRows[0].reaction_type;
+      if (existingReaction === 'dislike') {
+        // Remove dislike
+        await db.query('DELETE FROM comment_reactions WHERE comment_id = ? AND user_id = ?', [
+          commentId,
+          userId,
+        ]);
+      } else {
+        // Change like to dislike
+        await db.query(
+          'UPDATE comment_reactions SET reaction_type = "dislike" WHERE comment_id = ? AND user_id = ?',
+          [commentId, userId],
+        );
+      }
+    } else {
+      // Add dislike
+      await db.query(
+        'INSERT INTO comment_reactions (comment_id, user_id, reaction_type) VALUES (?, ?, "dislike")',
+        [commentId, userId],
+      );
+    }
+
+    // Get updated counts
+    const [likeRows] = await db.query(
+      'SELECT COUNT(*) AS count FROM comment_reactions WHERE comment_id = ? AND reaction_type = "like"',
+      [commentId],
+    );
+    const [dislikeRows] = await db.query(
+      'SELECT COUNT(*) AS count FROM comment_reactions WHERE comment_id = ? AND reaction_type = "dislike"',
+      [commentId],
+    );
+    const [userReactionRows] = await db.query(
+      'SELECT reaction_type FROM comment_reactions WHERE comment_id = ? AND user_id = ?',
+      [commentId, userId],
+    );
+
+    res.json({
+      likes: likeRows[0]?.count || 0,
+      dislikes: dislikeRows[0]?.count || 0,
+      userReaction: userReactionRows.length > 0 ? userReactionRows[0].reaction_type : null,
+    });
+  } catch (err) {
+    console.error('toggleCommentDislike error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -437,4 +703,6 @@ module.exports = {
   removeFavorite,
   addComment,
   listComments,
+  toggleCommentLike,
+  toggleCommentDislike,
 };

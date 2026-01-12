@@ -98,6 +98,16 @@ CREATE TABLE IF NOT EXISTS idea_comments (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Comment likes/dislikes (user can only like or dislike, not both)
+CREATE TABLE IF NOT EXISTS comment_reactions (
+  comment_id BIGINT NOT NULL,
+  user_id INT NOT NULL,
+  reaction_type ENUM('like', 'dislike') NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (comment_id, user_id),
+  INDEX idx_comment (comment_id)
+);
+
 -- Favorites 
 CREATE TABLE IF NOT EXISTS idea_favorites (
   user_id INT NOT NULL,

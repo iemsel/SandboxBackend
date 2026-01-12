@@ -1,0 +1,227 @@
+name: Backend Docker Build
+
+# 1.1 Suitable development pipeline: GitHub Actions CI/CD
+#     We chose GitHub Actions as our CI/CD platform because it's:
+#     - Integrated with GitHub repositories
+#     - Free for public repositories
+#     - Supports Docker and containerization natively
+#     - Easy to configure with YAML files
+#
+# 1.2 Build automatically triggered on push to main branches
+#     The pipeline runs automatically when code is pushed to these branches,
+#     ensuring every change is tested and validated immediately.
+on:
+  push:
+    branches: 
+      - main
+      - develop/main
+  workflow_dispatch:            # Allows manual triggering from GitHub UI
+
+# 3.1 Environmental parameters managed separately via GitHub Secrets
+#     This demonstrates proper separation of configuration from code:
+#     - Sensitive values (DB passwords, JWT secrets) can be stored in GitHub Secrets
+#     - Non-sensitive defaults are provided as fallbacks
+#     - Different environments (dev, staging, prod) can use different secrets
+#     - No hardcoded credentials in the codebase
+#
+#     To set secrets: Repository Settings > Secrets and variables > Actions
+env:
+  # Database configuration
+  # These values can be overridden per environment via GitHub Secrets
+  DB_HOST: ${{ secrets.DB_HOST || 'mariadb' }}              # Database hostname
+  DB_USER: ${{ secrets.DB_USER || 'root' }}                 # Database username
+  DB_PASS: ${{ secrets.DB_PASS || 'rootpw' }}               # Database password
+  DB_NAME_AUTH: ${{ secrets.DB_NAME_AUTH || 'auth_db' }}    # Auth service database
+  DB_NAME_IDEAS: ${{ secrets.DB_NAME_IDEAS || 'ideas_db' }} # Ideas service database
+  DB_NAME_PLANNER: ${{ secrets.DB_NAME_PLANNER || 'planner_db' }} # Planner service database
+  
+  # Application configuration
+  JWT_SECRET: ${{ secrets.JWT_SECRET || 'devsecret' }}        # Secret for JWT token signing
+  NODE_ENV: ${{ secrets.NODE_ENV || 'production' }}         # Node.js environment
+  GATEWAY_PORT: ${{ secrets.GATEWAY_PORT || '3010' }}        # API Gateway port
+  AUTH_PORT: ${{ secrets.AUTH_PORT || '4001' }}              # Auth service port
+  IDEAS_PORT: ${{ secrets.IDEAS_PORT || '4002' }}           # Ideas service port
+  PLANNER_PORT: ${{ secrets.PLANNER_PORT || '4003' }}      # Planner service port
+  CHAT_PORT: ${{ secrets.CHAT_PORT || '4004' }}             # Chat service port
+
+jobs:
+  build:
+    runs-on: ubuntu-latest  # Uses GitHub's Ubuntu runner (free tier)
+
+    steps:
+      # Step 1: Get the code from the repository
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        # This downloads the repository code to the runner so we can build it
+
+      # Step 2: Set up Docker Buildx (enhanced Docker build capabilities)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        # Using Buildx because it's better than Docker build 
+
+      # Step 3: Verify Docker Compose is available
+      - name: Set up Docker Compose
+        run: |
+          docker compose version
+
+      # 2.4 Containerization: Build Docker images with all dependencies
+      #     Each service is packaged into a Docker image that includes:
+      #     - The application code
+      #     - All Node.js dependencies (from package.json)
+      #     - Runtime environment (Node.js itself)
+      #     - Configuration
+      #
+      #     This ensures the software runs the same way in development,
+      #     testing, and production environments
+      
+      - name: Build gateway image
+        run: docker build -t sandbox-gateway .
+
+      - name: Build auth-service image
+        run: docker build -t auth-service ./services/auth-service
+
+      - name: Build ideas-service image
+        run: docker build -t ideas-service ./services/ideas-service
+
+      - name: Build planner-service image
+        run: docker build -t planner-service ./services/planner-service
+
+      - name: Build chat-service image
+        run: docker build -t chat-service ./services/chat-service
+
+      # 2.2 Development pipeline produces working software: Test the containers
+      #     1. Starts all services using dockern compose
+      #     2. Waits for services to be ready
+      #     3. Verifies they respond to health checks
+      #     4. Runs integration tests against the running services
+      
+      - name: Start services with docker compose
+        run: |
+          # Create environment file for docker compose
+          # Docker Compose reads this .env file to configure the services
+          cat > .env << EOF
+          DB_HOST=${{ env.DB_HOST }}
+          DB_USER=${{ env.DB_USER }}
+          DB_PASS=${{ env.DB_PASS }}
+          DB_NAME_AUTH=${{ env.DB_NAME_AUTH }}
+          DB_NAME_IDEAS=${{ env.DB_NAME_IDEAS }}
+          DB_NAME_PLANNER=${{ env.DB_NAME_PLANNER }}
+          JWT_SECRET=${{ env.JWT_SECRET }}
+          NODE_ENV=${{ env.NODE_ENV }}
+          GATEWAY_PORT=${{ env.GATEWAY_PORT }}
+          AUTH_PORT=${{ env.AUTH_PORT }}
+          IDEAS_PORT=${{ env.IDEAS_PORT }}
+          PLANNER_PORT=${{ env.PLANNER_PORT }}
+          CHAT_PORT=${{ env.CHAT_PORT }}
+          EOF
+          
+          docker compose up -d mariadb
+          sleep 10  # Wait for database to be ready
+          
+          # Start all application services
+          docker compose up -d auth-service ideas-service planner-service chat-service gateway
+          sleep 15  # Wait for services to start and connect to database
+
+      # 2.2 Development pipeline produces working software: Verify services work
+      - name: Verify services are working
+        run: |
+          # Check if containers are running
+          docker ps
+          
+          # Wait for services to be ready and verify they respond
+          echo "Waiting for services to start..."
+          for i in {1..60}; do
+            if curl -f http://localhost:${{ env.GATEWAY_PORT }}/health 2>/dev/null; then
+              echo "Gateway is responding!"
+              break
+            fi
+            if [ $i -eq 60 ]; then
+              echo "Gateway failed to start after 2 minutes"
+              docker-compose logs gateway
+              exit 1
+            fi
+            sleep 2
+          done
+          
+          # Verify gateway health endpoint
+          GATEWAY_HEALTH=$(curl -s http://localhost:${{ env.GATEWAY_PORT }}/health)
+          echo "Gateway health: $GATEWAY_HEALTH"
+          if ! echo "$GATEWAY_HEALTH" | grep -q "ok"; then
+            echo "Gateway health check failed"
+            exit 1
+          fi
+          
+          # Test a simple API call to verify the service actually works
+          # Try to register a test user (this tests the full auth flow)
+          echo "Testing API functionality..."
+          TEST_EMAIL="test_$(date +%s)@example.com"
+          REGISTER_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST http://localhost:${{ env.GATEWAY_PORT }}/auth/register \
+            -H "Content-Type: application/json" \
+            -d "{\"email\":\"$TEST_EMAIL\",\"name\":\"Test User\",\"password\":\"Test123!\"}")
+          
+          HTTP_CODE=$(echo "$REGISTER_RESPONSE" | tail -n1)
+          echo "Registration HTTP code: $HTTP_CODE"
+          
+          if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
+            echo "API test failed - registration returned $HTTP_CODE"
+            echo "Response: $REGISTER_RESPONSE"
+            exit 1
+          fi
+          
+          echo "Services are working correctly! API responded successfully."
+
+      # Cleanup step: Always runs, even if previous steps failed
+      - name: Cleanup
+        if: always()
+        run: |
+          # Stop and remove all containers and volumes
+          docker compose down -v || true
+          
+          # Remove unused Docker images and cache to free up space
+          docker system prune -f
+
+      # 2.1 Developers informed when build fails: Discord notification
+      #     We send notifications to Discord with:
+      #     - Build status (success/failure)
+      #     - Repository and branch information
+      #     - Commit details
+      #     - Link to the full build logs
+      
+      - name: Send Discord notification on failure
+        if: failure()
+        # This step only runs if any previous step failed
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          # Webhook URL is stored in GitHub Secrets for security
+          title: "Backend Build Failed"
+          description: |
+            **Repository:** ${{ github.repository }}
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+            **Workflow:** ${{ github.workflow }}
+            **Author:** ${{ github.actor }}
+            
+            Check the Actions logs for details:
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          color: 0xFF0000  # Red 
+          username: "GitHub Actions"
+          avatar_url: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
+
+      - name: Send Discord notification on success
+        if: success()
+        # This step only runs if all previous steps succeeded
+        uses: sarisia/actions-status-discord@v1
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          title: "Backend Build Succeeded"
+          description: |
+            **Repository:** ${{ github.repository }}
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+            **Workflow:** ${{ github.workflow }}
+            
+            All Docker images built and tested successfully!
+          color: 0x00FF00  # Green
+          username: "GitHub Actions"
+          avatar_url: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png"
