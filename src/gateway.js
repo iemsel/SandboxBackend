@@ -6,70 +6,63 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const app = express();
 const PORT = process.env.PORT || 3010;
 
+const AUTH_URL = process.env.AUTH_URL;
+const IDEAS_URL = process.env.IDEAS_URL;
+const PLANNER_URL = process.env.PLANNER_URL;
+// optional for later
+const CHAT_URL = process.env.CHAT_URL;
+
 app.use(cors());
+app.use(express.json());
 
-app.use((req, res, next) => {
-  console.log(`[GATEWAY] ${req.method} ${req.url}`);
-  next();
-});
+if (!AUTH_URL || !IDEAS_URL || !PLANNER_URL) {
+  console.warn('[GATEWAY] Missing one of AUTH_URL / IDEAS_URL / PLANNER_URL env vars');
+}
 
-// /auth → auth-service
+// /auth/* -> auth-service/*
 app.use(
   '/auth',
   createProxyMiddleware({
-    target: 'http://auth-service:4001',
+    target: AUTH_URL,
     changeOrigin: true,
-    logLevel: 'debug',
-    pathRewrite: {
-      '^/auth': '',
-    },
+    pathRewrite: { '^/auth': '' },
   }),
 );
 
-// /ideas → ideas-service
+// /ideas/* -> idea-service/*
 app.use(
   '/ideas',
   createProxyMiddleware({
-    target: 'http://ideas-service:4002',
+    target: IDEAS_URL,
     changeOrigin: true,
-    logLevel: 'debug',
-    pathRewrite: {
-      '^/ideas': '',
-    },
+    pathRewrite: { '^/ideas': '' },
   }),
 );
 
-// /planner → planner-service
+// /planner/* -> planner-service/*
 app.use(
   '/planner',
   createProxyMiddleware({
-    target: 'http://planner-service:4003',
+    target: PLANNER_URL,
     changeOrigin: true,
-    logLevel: 'debug',
-    pathRewrite: {
-      '^/planner': '',
-    },
+    pathRewrite: { '^/planner': '' },
   }),
 );
 
-// /chat → chat-service
-app.use(
-  '/chat',
-  createProxyMiddleware({
-    target: 'http://chat-service:4004',
-    changeOrigin: true,
-    logLevel: 'debug',
-    pathRewrite: {
-      '^/chat': '',
-    },
-  }),
-);
+// /chat/* -> chat-service/* (later)
+if (CHAT_URL) {
+  app.use(
+    '/chat',
+    createProxyMiddleware({
+      target: CHAT_URL,
+      changeOrigin: true,
+      pathRewrite: { '^/chat': '' },
+    }),
+  );
+}
 
-// gateway own health
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'gateway' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Gateway listening on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Gateway listening on port ${PORT}`));
