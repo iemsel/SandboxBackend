@@ -73,12 +73,17 @@ All services communicate over an internal Docker network. The frontend only talk
 
 ---
 
-## Getting Started
-
-### 1. Clone the Repository
-
+## Installation
+1. Clone the Repository
 ```bash
-git clone https://github.com/<your-username>/<your-repo>.git
+git clone https://github.com/iemsel/SandboxBackend.git
 cd SandboxBackend
-
+```
+2. Use docker
+```bash
+docker-compose up --build
+```
+4. Seed the ideas
+```bash
+docker-compose exec ideas-service node src/seed-ideas.js
 ```
